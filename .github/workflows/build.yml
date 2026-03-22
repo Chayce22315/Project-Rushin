@@ -1,4 +1,4 @@
-name: Project RUSHIN iOS Clean Build
+name: Project RUSHIN iOS Build
 
 on:
   push:
@@ -7,42 +7,72 @@ on:
 
 jobs:
 
-  # 1️⃣ setup
-  setup:
-    name: Setup
+  # 1️⃣ Generate Project
+  generate:
+    name: Generate Xcode Project
     runs-on: macos-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: System Info
+        run: |
+          sw_vers
+          xcodebuild -version
+
+      - name: Install CocoaPods
+        run: |
+          sudo gem install cocoapods || true
 
       - name: Install XcodeGen
         run: |
           brew update
           brew install xcodegen
 
-      - name: Verify
-        run: xcodegen --version
+      - name: Verify Tools
+        run: |
+          which xcodegen
+          xcodegen --version
 
-  # 2️⃣ generate project
-  generate:
-    name: Generate Project
-    runs-on: macos-latest
-    needs: setup
-    steps:
-      - uses: actions/checkout@v4
+      - name: Check project.yml
+        run: |
+          if [ ! -f project.yml ]; then
+            echo "❌ project.yml not found!"
+            exit 1
+          fi
 
-      - name: Generate Xcode Project
-        run: xcodegen generate --spec project.yml
+      - name: Generate Project
+        run: |
+          xcodegen generate --spec project.yml --project ProjectRUSHIN.xcodeproj
 
-      - name: Show files
-        run: ls
+      - name: Verify Project
+        run: |
+          if [ -d "ProjectRUSHIN.xcodeproj" ]; then
+            echo "✅ Project generated"
+          else
+            echo "❌ Project missing"
+            exit 1
+          fi
 
-  # 3️⃣ build
+  # 2️⃣ Build App
   build:
     name: Build App
     runs-on: macos-latest
     needs: generate
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen (again because new machine)
+        run: |
+          brew update
+          brew install xcodegen
+
+      - name: Regenerate Project (jobs reset fix)
+        run: |
+          xcodegen generate --spec project.yml --project ProjectRUSHIN.xcodeproj
 
       - name: Build (no signing)
         run: |
@@ -55,29 +85,81 @@ jobs:
             BUILD_DIR=build \
             clean build
 
-  # 4️⃣ package
+      - name: Verify Build Output
+        run: |
+          if [ -d "build/Debug-iphoneos/ProjectRUSHIN.app" ]; then
+            echo "✅ Build success"
+          else
+            echo "❌ Build failed"
+            exit 1
+          fi
+
+  # 3️⃣ Package IPA
   package:
     name: Package IPA
     runs-on: macos-latest
     needs: build
+
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen (again 😤)
+        run: |
+          brew update
+          brew install xcodegen
+
+      - name: Regenerate Project
+        run: |
+          xcodegen generate --spec project.yml --project ProjectRUSHIN.xcodeproj
+
+      - name: Rebuild (needed for files)
+        run: |
+          xcodebuild \
+            -project ProjectRUSHIN.xcodeproj \
+            -scheme ProjectRUSHIN \
+            -sdk iphoneos \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            BUILD_DIR=build \
+            clean build
+
       - name: Create IPA
         run: |
-          mkdir -p output
-          cp -r build/Debug-iphoneos/ProjectRUSHIN.app Payload
-          zip -r output/ProjectRUSHIN.ipa Payload
+          mkdir Payload
+          cp -r build/Debug-iphoneos/ProjectRUSHIN.app Payload/
+          zip -r ProjectRUSHIN.ipa Payload
 
-  # 5️⃣ summary
-  summary:
-    name: Upload & Summary
+      - name: Verify IPA
+        run: |
+          if [ -f "ProjectRUSHIN.ipa" ]; then
+            echo "✅ IPA created"
+          else
+            echo "❌ IPA missing"
+            exit 1
+          fi
+
+  # 4️⃣ Upload
+  upload:
+    name: Upload IPA
     runs-on: macos-latest
     needs: package
+
     steps:
-      - name: Upload IPA
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ProjectRUSHIN-IPA
-          path: output/ProjectRUSHIN.ipa
+          path: ProjectRUSHIN.ipa
 
+  # 5️⃣ Summary
+  summary:
+    name: Summary
+    runs-on: macos-latest
+    needs: upload
+
+    steps:
       - name: Done
-        run: echo "✅ build complete. download your ipa from artifacts."
+        run: |
+          echo "🎉 BUILD COMPLETE"
+          echo "📦 Download your IPA from artifacts"
