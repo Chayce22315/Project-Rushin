@@ -1,56 +1,92 @@
-name: Build iOS Unsigned IPA
+name: ProjectRUSHIN iOS Build
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
-  build:
+  setup:
+    name: Setup Environment
     runs-on: macos-latest
     steps:
-      # 1️⃣ Checkout code
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Setup Ruby (for xcodegen)
-      - name: Setup Ruby
+      - name: Install Homebrew Dependencies
+        run: |
+          brew install xcodegen
+
+      - name: Set up Ruby (for CocoaPods if needed)
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.2'
+          ruby-version: 3.2
 
-      # 3️⃣ Install xcodegen
-      - name: Install XcodeGen
-        run: |
-          gem install xcodegen
+  generate:
+    name: Generate Xcode Project
+    runs-on: macos-latest
+    needs: setup
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      # 4️⃣ Generate Xcode Project
       - name: Generate Xcode Project
         run: |
-          xcodegen generate --spec project.yml
-          ls -la
+          xcodegen generate --spec project.yml --project ProjectRUSHIN.xcodeproj
 
-      # 5️⃣ Build Unsigned IPA
-      - name: Build Unsigned IPA
+      - name: List Schemes
         run: |
-          xcodebuild -scheme ProjectRUSHINBeta \
-                     -project ProjectRUSHINBeta.xcodeproj \
-                     -configuration Release \
-                     -sdk iphoneos \
-                     -derivedDataPath ./build \
-                     CODE_SIGN_IDENTITY="" \
-                     CODE_SIGNING_REQUIRED=NO \
-                     clean archive \
-                     -archivePath ./build/ProjectRUSHINBeta.xcarchive
+          xcodebuild -list -project ProjectRUSHIN.xcodeproj
 
+  build:
+    name: Build Unsigned IPA
+    runs-on: macos-latest
+    needs: generate
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Build Project
+        run: |
+          xcodebuild -project ProjectRUSHIN.xcodeproj \
+            -scheme ProjectRUSHIN \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath $PWD/build/ProjectRUSHIN.xcarchive archive
+
+      - name: Export Unsigned IPA
+        run: |
           xcodebuild -exportArchive \
-                     -archivePath ./build/ProjectRUSHINBeta.xcarchive \
-                     -exportOptionsPlist exportOptions.plist \
-                     -exportPath ./build/IPA
+            -archivePath $PWD/build/ProjectRUSHIN.xcarchive \
+            -exportPath $PWD/output \
+            -exportOptionsPlist exportOptions.plist
 
-      # 6️⃣ Upload IPA as artifact
-      - name: Upload IPA
-        uses: actions/upload-artifact@v3
+  package:
+    name: Package & Upload IPA
+    runs-on: macos-latest
+    needs: build
+    steps:
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: ProjectRUSHINBeta-IPA
-          path: ./build/IPA
+          name: ProjectRUSHIN-Unsigned-IPA
+          path: output/ProjectRUSHIN.ipa
+
+  summary:
+    name: Build Summary
+    runs-on: macos-latest
+    needs: package
+    steps:
+      - name: Show Build Summary
+        run: |
+          echo "---------------------------------"
+          echo "ProjectRUSHIN Build Summary"
+          echo "---------------------------------"
+          echo "Branch: $GITHUB_REF"
+          echo "IPA path: output/ProjectRUSHIN.ipa"
+          echo "Jobs executed:"
+          echo "1. Setup environment"
+          echo "2. Generate Xcode project"
+          echo "3. Build unsigned IPA"
+          echo "4. Package & upload IPA"
+          echo "5. Summary complete 🎉"
