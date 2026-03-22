@@ -1,69 +1,61 @@
-name: Build ProjectRUSHIN iOS
+name: Project RUSHIN iOS Clean Build
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
-  # Job 1: Setup macOS environment
+
+  # 1️⃣ setup
   setup:
-    name: Setup Environment
+    name: Setup
     runs-on: macos-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install Homebrew & XcodeGen
+      - name: Install XcodeGen
         run: |
-          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-          echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> $GITHUB_ENV
-          eval "$(/opt/homebrew/bin/brew shellenv)"
+          brew update
           brew install xcodegen
 
-      - name: Install CocoaPods (if needed)
-        run: |
-          sudo gem install cocoapods
+      - name: Verify
+        run: xcodegen --version
 
-  # Job 2: Generate Xcode project
-  generate_project:
-    name: Generate Xcode Project
+  # 2️⃣ generate project
+  generate:
+    name: Generate Project
     runs-on: macos-latest
     needs: setup
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup PATH for Homebrew
-        run: echo "PATH=$PATH:/opt/homebrew/bin" >> $GITHUB_ENV
+      - uses: actions/checkout@v4
 
       - name: Generate Xcode Project
-        run: xcodegen generate --spec project.yml --project ProjectRUSHIN.xcodeproj
+        run: xcodegen generate --spec project.yml
 
-  # Job 3: Build unsigned Xcode project
+      - name: Show files
+        run: ls
+
+  # 3️⃣ build
   build:
-    name: Build Unsigned IPA
+    name: Build App
     runs-on: macos-latest
-    needs: generate_project
+    needs: generate
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup PATH for Homebrew
-        run: echo "PATH=$PATH:/opt/homebrew/bin" >> $GITHUB_ENV
-
-      - name: Build Xcode Project
+      - name: Build (no signing)
         run: |
           xcodebuild \
             -project ProjectRUSHIN.xcodeproj \
             -scheme ProjectRUSHIN \
             -sdk iphoneos \
-            -configuration Release \
+            -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
             BUILD_DIR=build \
             clean build
 
-  # Job 4: Package IPA
+  # 4️⃣ package
   package:
     name: Package IPA
     runs-on: macos-latest
@@ -71,28 +63,21 @@ jobs:
     steps:
       - name: Create IPA
         run: |
-          mkdir -p build/IPA
-          xcodebuild -exportArchive \
-            -archivePath build/ProjectRUSHIN.xcarchive \
-            -exportOptionsPlist ExportOptions.plist \
-            -exportPath build/IPA || true
+          mkdir -p output
+          cp -r build/Debug-iphoneos/ProjectRUSHIN.app Payload
+          zip -r output/ProjectRUSHIN.ipa Payload
 
-      - name: List IPA Files
-        run: ls -la build/IPA
-
-  # Job 5: Summary and Upload Artifact
+  # 5️⃣ summary
   summary:
-    name: Upload IPA & Summary
+    name: Upload & Summary
     runs-on: macos-latest
     needs: package
     steps:
-      - name: Upload IPA Artifact
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: ProjectRUSHIN-IPA
-          path: build/IPA/*.ipa
+          path: output/ProjectRUSHIN.ipa
 
-      - name: Workflow Summary
-        run: |
-          echo "Build and packaging complete!"
-          echo "Unsigned IPA uploaded as artifact."
+      - name: Done
+        run: echo "✅ build complete. download your ipa from artifacts."
