@@ -1,0 +1,89 @@
+name: Project RUSHIN iOS Build
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  # 1. Setup environment
+  setup:
+    name: Setup Environment
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Homebrew
+        run: |
+          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
+          eval "$(/opt/homebrew/bin/brew shellenv)"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Verify XcodeGen
+        run: xcodegen --version
+
+  # 2. Generate Xcode project
+  generate:
+    name: Generate Xcode Project
+    runs-on: macos-latest
+    needs: setup
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Generate Xcode Project
+        run: xcodegen generate --spec project.yml --project ProjectRUSHIN.xcodeproj --use-cache --schemes
+
+      - name: List Project Files
+        run: ls -R ProjectRUSHIN.xcodeproj
+
+  # 3. Build unsigned IPA
+  build:
+    name: Build Unsigned IPA
+    runs-on: macos-latest
+    needs: generate
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Build IPA
+        run: |
+          xcodebuild -project ProjectRUSHIN.xcodeproj \
+                     -scheme ProjectRUSHIN \
+                     -configuration Debug \
+                     -sdk iphoneos \
+                     BUILD_DIR=build \
+                     clean build
+
+      - name: Package IPA
+        run: |
+          mkdir -p output
+          xcrun -sdk iphoneos PackageApplication -v build/Debug-iphoneos/ProjectRUSHIN.app -o output/ProjectRUSHIN.ipa
+
+  # 4. Upload IPA artifact
+  upload:
+    name: Upload IPA
+    runs-on: macos-latest
+    needs: build
+    steps:
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProjectRUSHIN-ipa
+          path: output/ProjectRUSHIN.ipa
+
+  # 5. Summary job
+  summary:
+    name: Build Summary
+    runs-on: macos-latest
+    needs: [setup, generate, build, upload]
+    steps:
+      - name: Show Build Summary
+        run: |
+          echo "Build completed!"
+          echo "Check artifacts for ProjectRUSHIN.ipa"
