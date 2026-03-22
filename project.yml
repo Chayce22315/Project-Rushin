@@ -1,24 +1,32 @@
-name: ProjectRUSHINBeta
+name: ProjectRUSHIN
 options:
-  bundleIdPrefix: com.fruitsnack
+  bundleIdPrefix: com.pixelatedstudios.pjrush
   deploymentTarget:
     iOS: '16.0'
 configs:
   Debug: debug
   Release: release
+
 targets:
-  ProjectRUSHINBeta:
+  ProjectRUSHIN:
     type: application
     platform: iOS
-    sources: [ProjectRUSHINBeta]
+    deploymentTarget: '16.0'
+    sources:
+      - path: Sources
+    resources:
+      - path: Resources
     settings:
-      INFO_PLIST_FILE: ProjectRUSHINBeta/Info.plist
+      INFO_PLIST_FILE: Info.plist
+      SWIFT_VERSION: 5.0
+      CODE_SIGN_IDENTITY: ""
+      CODE_SIGNING_REQUIRED: NO
+      CODE_SIGNING_ALLOWED: NO
+
 schemes:
-  ProjectRUSHINBeta:
+  ProjectRUSHIN:
     build:
       targets:
-        ProjectRUSHINBeta: all
+        ProjectRUSHIN: all
     run:
       config: Debug
-    archive:
-      config: Release
