@@ -1,0 +1,56 @@
+name: Build iOS Unsigned IPA
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      # 1️⃣ Checkout code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 2️⃣ Setup Ruby (for xcodegen)
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+
+      # 3️⃣ Install xcodegen
+      - name: Install XcodeGen
+        run: |
+          gem install xcodegen
+
+      # 4️⃣ Generate Xcode Project
+      - name: Generate Xcode Project
+        run: |
+          xcodegen generate --spec project.yml
+          ls -la
+
+      # 5️⃣ Build Unsigned IPA
+      - name: Build Unsigned IPA
+        run: |
+          xcodebuild -scheme ProjectRUSHINBeta \
+                     -project ProjectRUSHINBeta.xcodeproj \
+                     -configuration Release \
+                     -sdk iphoneos \
+                     -derivedDataPath ./build \
+                     CODE_SIGN_IDENTITY="" \
+                     CODE_SIGNING_REQUIRED=NO \
+                     clean archive \
+                     -archivePath ./build/ProjectRUSHINBeta.xcarchive
+
+          xcodebuild -exportArchive \
+                     -archivePath ./build/ProjectRUSHINBeta.xcarchive \
+                     -exportOptionsPlist exportOptions.plist \
+                     -exportPath ./build/IPA
+
+      # 6️⃣ Upload IPA as artifact
+      - name: Upload IPA
+        uses: actions/upload-artifact@v3
+        with:
+          name: ProjectRUSHINBeta-IPA
+          path: ./build/IPA

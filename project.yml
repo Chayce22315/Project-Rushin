@@ -1,0 +1,24 @@
+name: ProjectRUSHINBeta
+options:
+  bundleIdPrefix: com.fruitsnack
+  deploymentTarget:
+    iOS: '16.0'
+configs:
+  Debug: debug
+  Release: release
+targets:
+  ProjectRUSHINBeta:
+    type: application
+    platform: iOS
+    sources: [ProjectRUSHINBeta]
+    settings:
+      INFO_PLIST_FILE: ProjectRUSHINBeta/Info.plist
+schemes:
+  ProjectRUSHINBeta:
+    build:
+      targets:
+        ProjectRUSHINBeta: all
+    run:
+      config: Debug
+    archive:
+      config: Release
