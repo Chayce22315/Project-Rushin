@@ -13,21 +13,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Install Homebrew + XcodeGen
-      - name: Install Homebrew + XcodeGen
-        run: |
-          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-          echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.bash_profile
-          eval "$(/opt/homebrew/bin/brew shellenv)"
-          brew install xcodegen
-
-      # Generate Xcode project
-      - name: Generate Project
-        run: xcodegen generate --spec project.yml --project ProjectRushin.xcodeproj
-
       # Use latest Xcode
       - name: Use Latest Xcode
         run: sudo xcode-select -s /Applications/Xcode_26.3.app
+
+      # Generate Xcode project (full path to xcodegen)
+      - name: Generate Project
+        run: /opt/homebrew/bin/xcodegen generate --spec project.yml --project ProjectRushin.xcodeproj
 
       # Build IPA unsigned
       - name: Build Unsigned IPA
