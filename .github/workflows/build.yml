@@ -12,7 +12,7 @@ jobs:
     steps:
       # 📦 Checkout
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # 🧰 Install XcodeGen (CORRECT WAY)
       - name: Install XcodeGen
@@ -67,7 +67,7 @@ jobs:
 
       # ☁️ Upload IPA
       - name: Upload IPA
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ProjectRushin-IPA
           path: ProjectRushin.ipa
