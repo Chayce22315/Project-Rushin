@@ -1,4 +1,4 @@
-name: Build ProjectRushin (Unsigned)
+name: Build ProjectRushin (iPhone IPA)
 
 on:
   push:
@@ -7,47 +7,62 @@ on:
   workflow_dispatch:
 
 jobs:
-  build_all:
+  build_ipa:
     runs-on: macos-26
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Select latest Xcode
+      # Select Xcode
       - name: Use Xcode 26.3
         run: sudo xcode-select -s /Applications/Xcode_26.3.app
 
-      # Install XcodeGen PROPERLY (no Homebrew chaos)
-      - name: Install XcodeGen (Mint)
+      # Install XcodeGen (stable binary)
+      - name: Install XcodeGen
         run: |
-          brew install mint
-          mint install yonaskolb/XcodeGen
+          curl -L https://github.com/yonaskolb/XcodeGen/releases/download/2.45.1/xcodegen.zip -o xcodegen.zip
+          unzip xcodegen.zip
+          chmod +x xcodegen/bin/xcodegen
+          sudo mv xcodegen/bin/xcodegen /usr/local/bin/xcodegen
 
       # Generate project
       - name: Generate Project
-        run: mint run xcodegen generate --spec project.yml --project ProjectRushin.xcodeproj
+        run: |
+          for i in 1 2 3; do
+            xcodegen generate --spec project.yml --project ProjectRushin.xcodeproj && break
+            sleep 2
+          done
 
-      # Build (no signing needed)
-      - name: Build App
+      # Clean
+      - name: Clean
+        run: |
+          rm -rf build
+          xcodebuild clean -project ProjectRushin.xcodeproj -scheme ProjectRushin || true
+
+      # Build archive (REAL DEVICE)
+      - name: Archive App
         run: |
           xcodebuild \
             -project ProjectRushin.xcodeproj \
             -scheme ProjectRushin \
             -configuration Release \
-            -sdk iphonesimulator \
-            -derivedDataPath build \
+            -sdk iphoneos \
+            -archivePath $PWD/build/ProjectRushin.xcarchive \
+            archive \
             CODE_SIGNING_ALLOWED=NO
 
-      # Zip app (since unsigned IPA export is annoying)
-      - name: Package App
+      # Create IPA manually (no signing)
+      - name: Create IPA
         run: |
-          cd build/Build/Products/Release-iphonesimulator
-          zip -r ProjectRushin.zip ProjectRushin.app
+          mkdir -p Payload
+          cp -r build/ProjectRushin.xcarchive/Products/Applications/ProjectRushin.app Payload/
+          zip -r ProjectRushin.ipa Payload
+          rm -rf Payload
 
-      # Upload artifact
-      - name: Upload App
+      # Upload IPA
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: ProjectRushin-App
-          path: build/Build/Products/Release-iphonesimulator/ProjectRushin.zip
+          name: ProjectRushin-IPA
+          path: ProjectRushin.ipa
