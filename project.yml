@@ -1,8 +1,16 @@
 name: ProjectRushin
 
+options:
+  bundleIdPrefix: com.pixelatedstudios
+
 configs:
   Debug: debug
   Release: release
+
+settings:
+  base:
+    SWIFT_VERSION: 5.9
+    IPHONEOS_DEPLOYMENT_TARGET: 16.0
 
 targets:
   ProjectRushin:
@@ -10,9 +18,15 @@ targets:
     platform: iOS
 
     sources:
-      - Sources
+      - path: Sources
 
     settings:
-      PRODUCT_BUNDLE_IDENTIFIER: com.pixelatedstudios.rushin
-      INFOPLIST_FILE: Info.plist
-      IPHONEOS_DEPLOYMENT_TARGET: 16.0
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.pixelatedstudios.rushin
+        INFOPLIST_FILE: Info.plist
+
+schemes:
+  ProjectRushin:
+    build:
+      targets:
+        ProjectRushin: all
