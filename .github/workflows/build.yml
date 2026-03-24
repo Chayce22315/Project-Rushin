@@ -7,49 +7,47 @@ on:
   workflow_dispatch:
 
 jobs:
-  build_all_unsigned:
-    name: Generate & Build Unsigned IPA
+  build_all:
     runs-on: macos-26
-    steps:
-      - uses: actions/checkout@v4
 
-      # Use latest Xcode
-      - name: Use Latest Xcode
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Select latest Xcode
+      - name: Use Xcode 26.3
         run: sudo xcode-select -s /Applications/Xcode_26.3.app
 
-      # Install Homebrew + XcodeGen
-      - name: Install XcodeGen
+      # Install XcodeGen PROPERLY (no Homebrew chaos)
+      - name: Install XcodeGen (Mint)
         run: |
-          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-          echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.bash_profile
-          eval "$(/opt/homebrew/bin/brew shellenv)"
-          brew install xcodegen
-          which xcodegen   # print path to confirm
+          brew install mint
+          mint install yonaskolb/XcodeGen
 
-      # Generate Xcode project
+      # Generate project
       - name: Generate Project
-        run: xcodegen generate --spec project.yml --project ProjectRushin.xcodeproj
+        run: mint run xcodegen generate --spec project.yml --project ProjectRushin.xcodeproj
 
-      # Build IPA unsigned
-      - name: Build Unsigned IPA
+      # Build (no signing needed)
+      - name: Build App
         run: |
           xcodebuild \
             -project ProjectRushin.xcodeproj \
             -scheme ProjectRushin \
             -configuration Release \
-            -archivePath $PWD/build/ProjectRushin.xcarchive archive \
+            -sdk iphonesimulator \
+            -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO
 
-          xcodebuild \
-            -exportArchive \
-            -archivePath $PWD/build/ProjectRushin.xcarchive \
-            -exportOptionsPlist buildOptions.plist \
-            -exportPath $PWD/build \
-            CODE_SIGNING_ALLOWED=NO
+      # Zip app (since unsigned IPA export is annoying)
+      - name: Package App
+        run: |
+          cd build/Build/Products/Release-iphonesimulator
+          zip -r ProjectRushin.zip ProjectRushin.app
 
-      # Upload IPA artifact
-      - name: Upload IPA
+      # Upload artifact
+      - name: Upload App
         uses: actions/upload-artifact@v4
         with:
-          name: Unsigned IPA
-          path: build/ProjectRushin.ipa
+          name: ProjectRushin-App
+          path: build/Build/Products/Release-iphonesimulator/ProjectRushin.zip
