@@ -1,4 +1,4 @@
-name: Build ProjectRushin (iPhone IPA)
+name: Build ProjectRushin (Debug + IPA)
 
 on:
   push:
@@ -7,12 +7,35 @@ on:
   workflow_dispatch:
 
 jobs:
-  build_ipa:
+  build_all:
     runs-on: macos-26
 
     steps:
+      # Checkout repo (VERY IMPORTANT)
       - name: Checkout
         uses: actions/checkout@v4
+
+      # Debug EVERYTHING (this is the key 🔥)
+      - name: 🔍 DEBUG FILES
+        run: |
+          echo "===== CURRENT DIR ====="
+          pwd
+
+          echo "===== ROOT FILES ====="
+          ls -la
+
+          echo "===== ALL FILES ====="
+          ls -R
+
+          echo "===== CHECK project.yml ====="
+          if [ -f project.yml ]; then
+            echo "FOUND project.yml ✅"
+          else
+            echo "MISSING project.yml ❌"
+          fi
+
+          echo "===== PRINT project.yml ====="
+          cat project.yml || echo "CANNOT READ FILE ❌"
 
       # Select Xcode
       - name: Use Xcode 26.3
@@ -26,21 +49,33 @@ jobs:
           chmod +x xcodegen/bin/xcodegen
           sudo mv xcodegen/bin/xcodegen /usr/local/bin/xcodegen
 
-      # Generate project
+      # Generate project (retry safe)
       - name: Generate Project
         run: |
           for i in 1 2 3; do
+            echo "Attempt $i..."
             xcodegen generate --spec project.yml --project ProjectRushin.xcodeproj && break
+            echo "Retrying..."
             sleep 2
           done
 
-      # Clean
+      # Verify project exists
+      - name: Verify Project
+        run: |
+          if [ -d ProjectRushin.xcodeproj ]; then
+            echo "PROJECT GENERATED ✅"
+          else
+            echo "PROJECT MISSING ❌"
+            exit 1
+          fi
+
+      # Clean build
       - name: Clean
         run: |
           rm -rf build
           xcodebuild clean -project ProjectRushin.xcodeproj -scheme ProjectRushin || true
 
-      # Build archive (REAL DEVICE)
+      # Archive for REAL iPhone (no signing yet)
       - name: Archive App
         run: |
           xcodebuild \
@@ -52,7 +87,7 @@ jobs:
             archive \
             CODE_SIGNING_ALLOWED=NO
 
-      # Create IPA manually (no signing)
+      # Create IPA manually (for sideload tools)
       - name: Create IPA
         run: |
           mkdir -p Payload
