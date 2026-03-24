@@ -1,165 +1,54 @@
-name: Project RUSHIN iOS Build
+name: Build ProjectRushin (Unsigned)
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
-
-  # 1️⃣ Generate Project
-  generate:
-    name: Generate Xcode Project
-    runs-on: macos-latest
-
+  build_all_unsigned:
+    name: Generate & Build Unsigned IPA
+    runs-on: macos-26
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: System Info
+      # Install Homebrew + XcodeGen
+      - name: Install Homebrew + XcodeGen
         run: |
-          sw_vers
-          xcodebuild -version
-
-      - name: Install CocoaPods
-        run: |
-          sudo gem install cocoapods || true
-
-      - name: Install XcodeGen
-        run: |
-          brew update
+          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.bash_profile
+          eval "$(/opt/homebrew/bin/brew shellenv)"
           brew install xcodegen
 
-      - name: Verify Tools
-        run: |
-          which xcodegen
-          xcodegen --version
-
-      - name: Check project.yml
-        run: |
-          if [ ! -f project.yml ]; then
-            echo "❌ project.yml not found!"
-            exit 1
-          fi
-
+      # Generate Xcode project
       - name: Generate Project
-        run: |
-          xcodegen generate --spec project.yml --project ProjectRUSHIN.xcodeproj
+        run: xcodegen generate --spec project.yml --project ProjectRushin.xcodeproj
 
-      - name: Verify Project
-        run: |
-          if [ -d "ProjectRUSHIN.xcodeproj" ]; then
-            echo "✅ Project generated"
-          else
-            echo "❌ Project missing"
-            exit 1
-          fi
+      # Use latest Xcode
+      - name: Use Latest Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.3.app
 
-  # 2️⃣ Build App
-  build:
-    name: Build App
-    runs-on: macos-latest
-    needs: generate
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Install XcodeGen (again because new machine)
-        run: |
-          brew update
-          brew install xcodegen
-
-      - name: Regenerate Project (jobs reset fix)
-        run: |
-          xcodegen generate --spec project.yml --project ProjectRUSHIN.xcodeproj
-
-      - name: Build (no signing)
+      # Build IPA unsigned
+      - name: Build Unsigned IPA
         run: |
           xcodebuild \
-            -project ProjectRUSHIN.xcodeproj \
-            -scheme ProjectRUSHIN \
-            -sdk iphoneos \
-            -configuration Debug \
-            CODE_SIGNING_ALLOWED=NO \
-            BUILD_DIR=build \
-            clean build
+            -project ProjectRushin.xcodeproj \
+            -scheme ProjectRushin \
+            -configuration Release \
+            -archivePath $PWD/build/ProjectRushin.xcarchive archive \
+            CODE_SIGNING_ALLOWED=NO
 
-      - name: Verify Build Output
-        run: |
-          if [ -d "build/Debug-iphoneos/ProjectRUSHIN.app" ]; then
-            echo "✅ Build success"
-          else
-            echo "❌ Build failed"
-            exit 1
-          fi
-
-  # 3️⃣ Package IPA
-  package:
-    name: Package IPA
-    runs-on: macos-latest
-    needs: build
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Install XcodeGen (again 😤)
-        run: |
-          brew update
-          brew install xcodegen
-
-      - name: Regenerate Project
-        run: |
-          xcodegen generate --spec project.yml --project ProjectRUSHIN.xcodeproj
-
-      - name: Rebuild (needed for files)
-        run: |
           xcodebuild \
-            -project ProjectRUSHIN.xcodeproj \
-            -scheme ProjectRUSHIN \
-            -sdk iphoneos \
-            -configuration Debug \
-            CODE_SIGNING_ALLOWED=NO \
-            BUILD_DIR=build \
-            clean build
+            -exportArchive \
+            -archivePath $PWD/build/ProjectRushin.xcarchive \
+            -exportOptionsPlist buildOptions.plist \
+            -exportPath $PWD/build \
+            CODE_SIGNING_ALLOWED=NO
 
-      - name: Create IPA
-        run: |
-          mkdir Payload
-          cp -r build/Debug-iphoneos/ProjectRUSHIN.app Payload/
-          zip -r ProjectRUSHIN.ipa Payload
-
-      - name: Verify IPA
-        run: |
-          if [ -f "ProjectRUSHIN.ipa" ]; then
-            echo "✅ IPA created"
-          else
-            echo "❌ IPA missing"
-            exit 1
-          fi
-
-  # 4️⃣ Upload
-  upload:
-    name: Upload IPA
-    runs-on: macos-latest
-    needs: package
-
-    steps:
-      - name: Upload Artifact
+      # Upload IPA artifact
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: ProjectRUSHIN-IPA
-          path: ProjectRUSHIN.ipa
-
-  # 5️⃣ Summary
-  summary:
-    name: Summary
-    runs-on: macos-latest
-    needs: upload
-
-    steps:
-      - name: Done
-        run: |
-          echo "🎉 BUILD COMPLETE"
-          echo "📦 Download your IPA from artifacts"
+          name: Unsigned IPA
+          path: build/ProjectRushin.ipa

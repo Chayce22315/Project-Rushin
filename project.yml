@@ -1,32 +1,26 @@
-name: ProjectRUSHIN
+name: ProjectRushin
 options:
-  bundleIdPrefix: com.pixelatedstudios.pjrush
-  deploymentTarget:
-    iOS: '16.0'
-configs:
-  Debug: debug
-  Release: release
-
+  bundleIdPrefix: com.pixelatedstudios
+  deploymentTarget: "16.0"
+  organizationName: Pixelated Studios
+  developmentLanguage: Swift
+  swiftVersion: 5.9
 targets:
-  ProjectRUSHIN:
+  ProjectRushin:
     type: application
     platform: iOS
-    deploymentTarget: '16.0'
-    sources:
-      - path: Sources
-    resources:
-      - path: Resources
+    sources: Sources
     settings:
-      INFO_PLIST_FILE: Info.plist
-      SWIFT_VERSION: 5.0
-      CODE_SIGN_IDENTITY: ""
-      CODE_SIGNING_REQUIRED: NO
-      CODE_SIGNING_ALLOWED: NO
-
-schemes:
-  ProjectRUSHIN:
-    build:
-      targets:
-        ProjectRUSHIN: all
-    run:
-      config: Debug
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.pixelatedstudios.rushin
+        INFOPLIST_FILE: Info.plist
+        SWIFT_VERSION: 5.9
+    dependencies: []
+    schemes:
+      ProjectRushin:
+        buildAction:
+          targets:
+            - ProjectRushin
+        testAction: {}
+        runAction:
+          executable: ProjectRushin

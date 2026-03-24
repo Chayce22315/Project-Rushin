@@ -1,36 +1,61 @@
-import Foundation
 import CoreNFC
-import Combine
+import SwiftUI
 
 class NFCController: NSObject, ObservableObject, NFCNDEFReaderSessionDelegate {
-    @Published var credits: Int = 1  // start with your card credits
-    private var session: NFCNDEFReaderSession?
+    @Published var lastUID: String = ""
+    @Published var message: String = "Tap your card or play as guest!"
+    @Published var credits: Int = 0
+    @Published var gameScore: Int = 0
 
-    // start scanning for NFC card
-    func startScan() {
+    var session: NFCNDEFReaderSession?
+
+    // your real D&B card UID
+    let myCardUID = "040cd3122b2291"
+
+    func beginScanning() {
         guard NFCNDEFReaderSession.readingAvailable else {
-            print("NFC reading not supported on this device")
+            message = "NFC not supported on this device"
             return
         }
         session = NFCNDEFReaderSession(delegate: self, queue: nil, invalidateAfterFirstRead: true)
-        session?.alertMessage = "Tap your arcade card"
+        session?.alertMessage = "Hold your card near the top of your iPhone."
         session?.begin()
     }
 
-    // manually add credit (for testing or tap-based)
-    func insertCredit() {
-        credits += 1
-        print("Credit added! Total credits: \(credits)")
-    }
-
-    // MARK: - NFCNDEFReaderSessionDelegate
     func readerSession(_ session: NFCNDEFReaderSession, didInvalidateWithError error: Error) {
-        print("NFC session ended: \(error.localizedDescription)")
+        DispatchQueue.main.async {
+            self.message = "Scan cancelled or failed: \(error.localizedDescription)"
+        }
     }
 
     func readerSession(_ session: NFCNDEFReaderSession, didDetectNDEFs messages: [NFCNDEFMessage]) {
         DispatchQueue.main.async {
-            self.insertCredit()
+            // assign the UID
+            self.lastUID = self.myCardUID
+            self.message = "Card detected! UID: \(self.lastUID)"
+            self.grantArcadeCredit()
+            self.startGame()
         }
+    }
+
+    // arcade-style: 1 credit per scan
+    func grantArcadeCredit() {
+        credits += 1
+    }
+
+    func startGame() {
+        message = "Game started! Tap to score!"
+        gameScore = 0
+    }
+
+    func incrementScore() {
+        // anyone can score
+        gameScore += 1
+    }
+
+    func playAsGuest() {
+        lastUID = "" // clear UID
+        grantArcadeCredit()
+        startGame()
     }
 }
