@@ -1,16 +1,8 @@
 name: ProjectRushin
 
-options:
-  minimumXcodeGenVersion: 2.30.0
-
 configs:
   Debug: debug
   Release: release
-
-settings:
-  base:
-    PRODUCT_NAME: ProjectRushin
-    SWIFT_VERSION: 5.9
 
 targets:
   ProjectRushin:
@@ -21,15 +13,6 @@ targets:
       - Sources
 
     settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.pixelatedstudios.rushin
-        INFOPLIST_FILE: Info.plist
-        IPHONEOS_DEPLOYMENT_TARGET: 16.0
-
-schemes:
-  ProjectRushin:
-    build:
-      targets:
-        ProjectRushin: all
-    run:
-      config: Debug
+      PRODUCT_BUNDLE_IDENTIFIER: com.pixelatedstudios.rushin
+      INFOPLIST_FILE: Info.plist
+      IPHONEOS_DEPLOYMENT_TARGET: 16.0
