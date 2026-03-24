@@ -1,7 +1,7 @@
 name: ProjectRushin
 
 options:
-  bundleIdPrefix: com.pixelatedstudios
+  minimumXcodeGenVersion: 2.30.0
 
 configs:
   Debug: debug
@@ -9,8 +9,14 @@ configs:
 
 settings:
   base:
+    PRODUCT_NAME: ProjectRushin
     SWIFT_VERSION: 5.9
     IPHONEOS_DEPLOYMENT_TARGET: 16.0
+  configs:
+    Debug:
+      SWIFT_OPTIMIZATION_LEVEL: "-Onone"
+    Release:
+      SWIFT_OPTIMIZATION_LEVEL: "-O"
 
 targets:
   ProjectRushin:
@@ -30,3 +36,5 @@ schemes:
     build:
       targets:
         ProjectRushin: all
+    run:
+      config: Debug
