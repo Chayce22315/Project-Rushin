@@ -1,26 +1,30 @@
 name: ProjectRushin
+
 options:
   bundleIdPrefix: com.pixelatedstudios
   deploymentTarget: "16.0"
   organizationName: Pixelated Studios
   developmentLanguage: Swift
   swiftVersion: 5.9
+
 targets:
   ProjectRushin:
     type: application
     platform: iOS
-    sources: Sources
+    sources:
+      - path: Sources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.pixelatedstudios.rushin
         INFOPLIST_FILE: Info.plist
         SWIFT_VERSION: 5.9
-    dependencies: []
-    schemes:
-      ProjectRushin:
-        buildAction:
-          targets:
-            - ProjectRushin
-        testAction: {}
-        runAction:
-          executable: ProjectRushin
+        TARGETED_DEVICE_FAMILY: "1"
+        SUPPORTS_MACCATALYST: NO
+
+schemes:
+  ProjectRushin:
+    build:
+      targets:
+        ProjectRushin: all
+    run:
+      config: Debug
