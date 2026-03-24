@@ -1,94 +1,73 @@
-name: Build ProjectRushin (IPA - Stable)
+name: Build & Sideload ProjectRushin
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
-  build_all:
-    runs-on: macos-26
+  build-ipa:
+    runs-on: macos-latest
 
     steps:
-      # Checkout repo
-      - name: Checkout
-        uses: actions/checkout@v4
+      # 📦 Checkout
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
-      # Debug (optional but helpful)
-      - name: Debug Files
-        run: |
-          echo "===== ROOT FILES ====="
-          ls -la
-          echo "===== project.yml ====="
-          cat project.yml
-
-      # Select Xcode
-      - name: Use Xcode 26.3
-        run: sudo xcode-select -s /Applications/Xcode_26.3.app
-
-      # Install XcodeGen via Homebrew (correct way)
+      # 🧰 Install XcodeGen (CORRECT WAY)
       - name: Install XcodeGen
         run: |
           brew update
           brew install xcodegen
 
-      # Fix PATH so xcodegen is usable
-      - name: Setup PATH
-        run: |
-          echo "/opt/homebrew/bin" >> $GITHUB_PATH
-          echo "/usr/local/bin" >> $GITHUB_PATH
-
-      # Verify installation (CRITICAL)
+      # 🔍 Verify (so we NEVER get that bug again)
       - name: Verify XcodeGen
         run: |
           which xcodegen
           xcodegen version
 
-      # Generate project
-      - name: Generate Project
+      # ⚙️ Generate project
+      - name: Generate Xcode project
         run: |
           xcodegen generate --spec project.yml
 
-      # Confirm project exists
-      - name: Verify Project
-        run: |
-          if [ -d ProjectRushin.xcodeproj ]; then
-            echo "PROJECT GENERATED ✅"
-          else
-            echo "PROJECT FAILED ❌"
-            exit 1
-          fi
-
-      # Clean build
-      - name: Clean
-        run: |
-          rm -rf build
-          xcodebuild clean -project ProjectRushin.xcodeproj -scheme ProjectRushin || true
-
-      # Archive for real iPhone (no signing yet)
-      - name: Archive App
+      # 🏗️ Build app (REAL binary output)
+      - name: Build App (Release)
         run: |
           xcodebuild \
             -project ProjectRushin.xcodeproj \
             -scheme ProjectRushin \
             -configuration Release \
             -sdk iphoneos \
-            -archivePath $PWD/build/ProjectRushin.xcarchive \
-            archive \
+            BUILD_DIR=$PWD/build \
+            BUILD_ROOT=$PWD/build \
+            clean build \
             CODE_SIGNING_ALLOWED=NO
 
-      # Create IPA manually (for sideload tools)
+      # 🧪 SAFETY CHECK (prevents %%1.app error)
+      - name: Verify App Binary
+        run: |
+          echo "===== Checking .app contents ====="
+          ls -la build/Release-iphoneos/ProjectRushin.app
+
+          if [ ! -f build/Release-iphoneos/ProjectRushin.app/ProjectRushin ]; then
+            echo "❌ Executable missing! Build failed."
+            exit 1
+          fi
+
+          echo "✅ Executable exists!"
+
+      # 📦 Create IPA
       - name: Create IPA
         run: |
           mkdir -p Payload
-          cp -r build/ProjectRushin.xcarchive/Products/Applications/ProjectRushin.app Payload/
+          cp -r build/Release-iphoneos/ProjectRushin.app Payload/
           zip -r ProjectRushin.ipa Payload
-          rm -rf Payload
+          echo "✅ IPA created!"
 
-      # Upload IPA
+      # ☁️ Upload IPA
       - name: Upload IPA
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: ProjectRushin-IPA
           path: ProjectRushin.ipa
